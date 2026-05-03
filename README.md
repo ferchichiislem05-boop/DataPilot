@@ -1,179 +1,263 @@
-# 🚀 DataPilot — AI Data Analysis Agent
+<div align="center">
 
-DataPilot is a production-ready AI agent that accepts natural-language questions, converts them to SQL, executes them against a SQLite database, and returns charts, statistics, and plain-English explanations — all through a clean Streamlit interface.
+# 🚀 DataPilot
+
+### AI-Powered Data Analysis Agent
+
+*Ask a question in plain English. Get SQL, a chart, and an explanation — instantly.*
+
+[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
+[![Streamlit](https://img.shields.io/badge/Streamlit-1.57-FF4B4B?style=flat-square&logo=streamlit&logoColor=white)](https://streamlit.io)
+[![Claude](https://img.shields.io/badge/Claude-Sonnet%204.6-orange?style=flat-square)](https://anthropic.com)
+[![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
+
+</div>
 
 ---
 
-## Architecture
+## What is DataPilot?
+
+DataPilot is an AI agent that sits between you and your database. You ask a business question in natural language — it figures out the SQL, runs it, and comes back with a chart and a clear explanation.
+
+No SQL knowledge required. No BI tool license needed.
+
+```
+You:  "What are the top 5 products by revenue?"
+
+DataPilot:  → generates SQL
+            → runs it on the database
+            → builds a bar chart
+            → explains the result in plain English
+```
+
+---
+
+## How it works
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        User question                        │
+└───────────────────────┬─────────────────────────────────────┘
+                        │
+                        ▼
+              ┌─────────────────┐
+              │  Claude Sonnet  │  Converts question → SQL
+              └────────┬────────┘
+                       │
+                       ▼
+           ┌────────────────────────┐
+           │    SQL Validator       │  Blocks DROP / DELETE /
+           │    (Security layer)    │  UPDATE / unknown tables
+           └──────────┬─────────────┘
+                      │
+                      ▼
+           ┌────────────────────────┐
+           │    SQLite Database     │  Executes the query
+           │    (3 tables, 900 rows)│  Returns a DataFrame
+           └──────────┬─────────────┘
+                      │ Empty result?
+                      ├──────────────► Retry once with a smarter query
+                      │
+                      ▼
+         ┌──────────────────────────┐
+         │   Pandas + Plotly        │  Analyzes + builds chart
+         └──────────┬───────────────┘
+                    │
+                    ▼
+         ┌──────────────────────────┐
+         │   Claude Sonnet          │  Writes plain-English explanation
+         └──────────┬───────────────┘
+                    │
+                    ▼
+         ┌──────────────────────────────────────────────┐
+         │  Streamlit UI                                │
+         │  📊 Chart  │  📋 Data  │  🔍 SQL  │  💡 Why │
+         └──────────────────────────────────────────────┘
+```
+
+---
+
+## Features
+
+| Feature | Detail |
+|---|---|
+| **Natural language → SQL** | Powered by Claude Sonnet 4.6 |
+| **Auto-retry** | If first query returns nothing, agent reformulates and retries once |
+| **Security guardrails** | Blocks all mutation queries (DROP, DELETE, UPDATE, INSERT…) |
+| **Smart charts** | Auto-selects bar / line / histogram based on data shape |
+| **Plain-English explanation** | Results explained without technical jargon |
+| **Cloud-ready** | Deploys to Streamlit Community Cloud in 3 clicks |
+
+---
+
+## Project structure
 
 ```
 DataPilot/
+│
 ├── app/
-│   ├── main.py              # Streamlit UI — entry point
-│   ├── agent.py             # Orchestration loop (NL → SQL → analysis → explanation)
-│   ├── config.py            # Central config (paths, model, limits)
+│   ├── main.py              ← Streamlit UI
+│   ├── agent.py             ← Orchestration pipeline
+│   ├── config.py            ← Settings (model, paths, limits)
 │   │
 │   ├── tools/
-│   │   ├── sql_tool.py      # SQLite execution + schema reader
-│   │   ├── python_tool.py   # Pandas aggregations & summaries
-│   │   └── viz_tool.py      # Plotly chart builder (bar / line / histogram)
+│   │   ├── sql_tool.py      ← Runs SQL, reads schema
+│   │   ├── python_tool.py   ← Pandas stats & summaries
+│   │   └── viz_tool.py      ← Builds Plotly charts
 │   │
 │   └── guardrails/
-│       ├── sql_validator.py  # Blocks dangerous keywords, unknown tables
-│       └── output_checker.py # Rejects empty or malformed results
+│       ├── sql_validator.py ← Security: blocks dangerous SQL
+│       └── output_checker.py← Rejects empty / malformed results
 │
 ├── data/
-│   └── sample.db            # Auto-created on first run
+│   └── sample.db            ← Auto-created SQLite database
 │
 ├── scripts/
-│   └── create_db.py         # DB seed script (100 customers, 300 sales, 500 txns)
+│   └── create_db.py         ← Seeds database with sample data
 │
 ├── .streamlit/
-│   ├── config.toml          # Theme + server config
-│   └── secrets.toml.example # Template for secrets
+│   └── config.toml          ← Theme + server config
 │
 ├── requirements.txt
-├── runtime.txt              # Python version for Streamlit Cloud
-└── .env.example
-```
-
-### Agent pipeline
-
-```
-User question
-     │
-     ▼
-[Claude] Generate SQL
-     │
-     ▼
-[sql_validator] Block dangerous / unknown tables
-     │
-     ▼
-[sql_tool] Execute on SQLite → DataFrame
-     │ empty or error?
-     ├──yes──► [Claude] Retry with hint → re-validate → re-execute
-     │
-     ▼
-[output_checker] Confirm result is usable
-     │
-     ▼
-[python_tool] Pandas stats & summaries
-     │
-     ▼
-[viz_tool] Build Plotly chart (auto-detected type)
-     │
-     ▼
-[Claude] Generate plain-English explanation
-     │
-     ▼
-Streamlit UI — Chart | Data | SQL | Explanation
+└── runtime.txt
 ```
 
 ---
 
-## Quick Start (local)
+## Sample database
 
-### 1. Clone and install
+Three tables, automatically created on first launch:
 
+| Table | Columns | Rows |
+|---|---|---|
+| `sales` | id, date, product, revenue, units_sold | 300 |
+| `customers` | id, name, country, joined_date | 100 |
+| `transactions` | id, customer_id, amount, transaction_date | 500 |
+
+---
+
+## Example queries to try
+
+```
+"What are the top 5 products by total revenue?"
+"Which country has the most customers?"
+"Show total revenue per month in 2023"
+"What is the average transaction amount by country?"
+"Which product sold the most units?"
+"Show me the revenue distribution across products"
+```
+
+---
+
+## Run locally
+
+**1 — Clone the repo**
 ```bash
 git clone https://github.com/ferchichiislem05-boop/DataPilot.git
 cd DataPilot
+```
+
+**2 — Install dependencies**
+```bash
 pip install -r requirements.txt
 ```
 
-### 2. Configure your API key
-
+**3 — Add your Anthropic API key**
 ```bash
 cp .env.example .env
-# Edit .env and set your key:
+# Open .env and set:
 # ANTHROPIC_API_KEY=sk-ant-...
 ```
+Get a free key at [console.anthropic.com](https://console.anthropic.com)
 
-### 3. Run
-
+**4 — Launch**
 ```bash
 streamlit run app/main.py
 ```
 
-The sample database is created automatically on first launch.
+Open [http://localhost:8501](http://localhost:8501) — the database is created automatically.
 
 ---
 
-## Deploy on Streamlit Community Cloud (free)
+## Deploy to Streamlit Cloud (free, 3 steps)
 
-1. Push this repo to GitHub
-2. Go to [share.streamlit.io](https://share.streamlit.io)
-3. Click **New app** → select this repo → set **Main file path** to `app/main.py`
-4. Open **Advanced settings → Secrets** and add:
+1. Go to **[share.streamlit.io](https://share.streamlit.io)** → sign in with GitHub
+
+2. Click **New app** and fill in:
+   ```
+   Repository  : ferchichiislem05-boop/DataPilot
+   Branch      : main
+   Main file   : app/main.py
+   ```
+
+3. In **Advanced settings → Secrets**, paste:
    ```toml
    ANTHROPIC_API_KEY = "sk-ant-..."
    ```
-5. Click **Deploy**
 
----
-
-## Example Queries
-
-| Question | Chart type |
-|---|---|
-| What are the top 5 products by total revenue? | Bar |
-| Which country has the most customers? | Bar |
-| Show total revenue per month in 2023 | Line |
-| What is the average transaction amount by country? | Bar |
-| Which product sold the most units? | Bar |
-| Show me revenue distribution across products | Histogram |
-
----
-
-## Sample Database
-
-| Table | Columns | Rows |
-|---|---|---|
-| `customers` | id, name, country, joined_date | 100 |
-| `sales` | id, date, product, revenue, units_sold | 300 |
-| `transactions` | id, customer_id, amount, transaction_date | 500 |
-
-Dates are stored as `TEXT` in `YYYY-MM-DD` format (ISO-8601).
+Click **Deploy** — live in ~2 minutes.
 
 ---
 
 ## Security
 
-| Rule | Detail |
+The agent only allows read operations. Every query is validated before execution:
+
+```
+✅ SELECT  — allowed
+❌ DROP    — blocked
+❌ DELETE  — blocked
+❌ UPDATE  — blocked
+❌ INSERT  — blocked
+❌ ALTER   — blocked
+❌ Unknown tables — blocked
+❌ Multiple statements — blocked
+❌ API key in browser DOM — never exposed
+```
+
+---
+
+## Tech stack
+
+| Layer | Tool |
 |---|---|
-| Blocked keywords | DROP, DELETE, UPDATE, INSERT, ALTER, CREATE, TRUNCATE, EXEC |
-| Only SELECT | Any non-SELECT statement is rejected |
-| Table allowlist | Only `sales`, `customers`, `transactions` can be queried |
-| No multi-statement | Semicolons inside queries are blocked |
-| Query length cap | 2,000 characters max |
-| API key | Never rendered in the browser DOM |
+| LLM | Anthropic Claude Sonnet 4.6 |
+| UI | Streamlit 1.57 |
+| Data processing | pandas 3.0 |
+| Charts | Plotly 6.7 |
+| Database | SQLite (built-in, zero config) |
+| Config | python-dotenv |
 
 ---
 
-## Tech Stack
+## Limitations & roadmap
 
-| Layer | Library | Version |
-|---|---|---|
-| LLM | Anthropic Claude | claude-sonnet-4-6 |
-| UI | Streamlit | 1.57.0 |
-| Data | pandas | 3.0.2 |
-| Charts | Plotly | 6.7.0 |
-| Database | SQLite | built-in |
-| Config | python-dotenv | 1.2.2 |
-
----
-
-## Limitations
-
-- Single-file SQLite only (no PostgreSQL / MySQL)
+**Current limitations**
+- Single SQLite file (no external databases yet)
 - No conversation memory — each question is independent
-- Chart type is auto-detected; complex multi-series charts need manual override
-- Retry runs at most once
+- Max 1 retry on failed queries
 
-## Future Improvements
-
-- [ ] Multi-turn conversation with chat history
-- [ ] Upload your own CSV / Excel file
-- [ ] PostgreSQL / DuckDB connectors
+**Planned improvements**
+- [ ] PostgreSQL / DuckDB support
+- [ ] Upload your own CSV or Excel file
+- [ ] Multi-turn conversation (memory across questions)
 - [ ] Streaming LLM responses
-- [ ] Export results to CSV
+- [ ] Export results to CSV / Excel
+
+---
+
+## Author
+
+Built by **ferchichiislem05-boop** as a portfolio project demonstrating:
+- LLM integration (Anthropic Claude)
+- Secure agentic pipelines
+- Clean Python architecture
+- Production deployment
+
+---
+
+<div align="center">
+
+*If this project helped you, leave a ⭐ on GitHub*
+
+</div>
