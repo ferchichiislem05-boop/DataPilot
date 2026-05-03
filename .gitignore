@@ -1,0 +1,20 @@
+# ── Secrets — NEVER commit these ──────────────────────────────────────────
+.env
+.streamlit/secrets.toml
+
+# ── Database — auto-generated at runtime ──────────────────────────────────
+data/sample.db
+
+# ── Python ────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+env/
+
+# ── OS ────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
